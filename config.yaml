@@ -1,0 +1,47 @@
+# Ambiente (mude para false para rodar em produção)
+testnet: true
+
+# Pares para operar
+symbols:
+  - BTCUSDT
+  - ETHUSDT
+  - BNBUSDT
+
+# Estratégias habilitadas por símbolo
+strategies:
+  BTCUSDT: ["ema_cross", "rsi"]
+  ETHUSDT: ["ema_cross"]
+  BNBUSDT: ["rsi"]
+
+# Parâmetros padrão das estratégias
+ema_cross:
+  fast_period: 12
+  slow_period: 26
+
+rsi:
+  period: 14
+  overbought: 70
+  oversold: 30
+
+# Risco e controle
+risk:
+  capital_per_trade_pct: 5      # % do saldo por trade
+  stop_loss_pct: 2              # Stop loss (exemplo, pode ser expandido)
+  take_profit_pct: 3            # Take profit (exemplo, pode ser expandido)
+  max_daily_loss_pct: 10        # Máx. perda diária
+  max_trades_per_day: 5
+
+# Modo de operação: 'trade' para operar, 'backtest' para simular
+mode: "trade"
+log_level: "INFO"
+
+# Web dashboard
+web:
+  enabled: true
+  host: "0.0.0.0"
+  port: 5000
+
+# IA (autoajuste)
+ia:
+  enabled: true
+  retrain_every: 7   # dias para novo ajuste de parâmetros

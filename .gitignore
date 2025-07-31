@@ -1,0 +1,18 @@
+# Diretórios de dependências
+node_modules/
+.idea/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Ambiente
+*.env
+
+venv/
+*.venv
+# Bundles
+dist/
+build/
+__pycache__/

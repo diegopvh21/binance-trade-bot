@@ -1,0 +1,11 @@
+python-binance==1.0.19
+pandas==2.2.2
+numpy==1.26.4
+ta==0.10.2
+scikit-learn==1.4.2
+Flask==3.0.3
+PyYAML==6.0.1
+python-telegram-bot==20.7
+python-dotenv==1.0.1
+loguru==0.7.2
+
