@@ -1,4 +1,3 @@
-import os
 from loguru import logger
 from telegram import Bot
 from bot.config import load_config

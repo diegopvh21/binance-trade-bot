@@ -1,19 +1,29 @@
-# Ambiente (mude para false para rodar em produção)
+# ========== Ambiente ==========
+# Se "true", usa as variáveis *_TEST do .env e a URL de testnet.
+# Se "false", usa as variáveis *_PROD e a URL de produção.
 testnet: true
 
-# Pares para operar
+# Versão do schema de config (só informativo, ajuda em futuras migrações)
+schema_version: 1
+
+# ========== Pares ==========
+# Sempre em MAIÚSCULAS (ex.: BTCUSDT). O WS já normaliza internamente.
 symbols:
   - BTCUSDT
   - ETHUSDT
   - BNBUSDT
 
-# Estratégias habilitadas por símbolo
+# Timeframe principal para candles (o WS atual usa 1m; se mudar aqui, mude no código também)
+timeframe: "1m"
+
+# ========== Estratégias ==========
+# Estratégias habilitadas por símbolo (use os nomes exatamente como nas classes: "ema_cross", "rsi")
 strategies:
   BTCUSDT: ["ema_cross", "rsi"]
   ETHUSDT: ["ema_cross"]
   BNBUSDT: ["rsi"]
 
-# Parâmetros padrão das estratégias
+# Parâmetros padrão das estratégias (usados pelo StrategyManager)
 ema_cross:
   fast_period: 12
   slow_period: 26
@@ -23,25 +33,38 @@ rsi:
   overbought: 70
   oversold: 30
 
-# Risco e controle
+# ========== Risco e Execução ==========
 risk:
-  capital_per_trade_pct: 5      # % do saldo por trade
-  stop_loss_pct: 2              # Stop loss (exemplo, pode ser expandido)
-  take_profit_pct: 3            # Take profit (exemplo, pode ser expandido)
-  max_daily_loss_pct: 10        # Máx. perda diária
-  max_trades_per_day: 5
+  capital_per_trade_pct: 5      # % do saldo USDT a ser usado por trade (para BUY via quoteOrderQty)
+  stop_loss_pct: 2              # reservado p/ evolução (ordens SL/TP)
+  take_profit_pct: 3            # reservado p/ evolução (ordens SL/TP)
+  max_daily_loss_pct: 10        # reservado p/ evolução mais precisa por capital
+  max_trades_per_day: 5         # trava de número de operações diárias
 
-# Modo de operação: 'trade' para operar, 'backtest' para simular
+# ========== Operação ==========
+# "trade": opera de verdade (usa ExecutionService).
+# "backtest": apenas gera sinais/logs (não envia ordens).
 mode: "trade"
+
+# Nível de log: "DEBUG", "INFO", "WARNING", "ERROR"
 log_level: "INFO"
 
-# Web dashboard
+# ========== Web / Dashboard ==========
 web:
   enabled: true
   host: "0.0.0.0"
   port: 5000
+  # O dashboard lê state.json e expõe /metrics (Prometheus).
+  # Você pode sobrescrever os paths via variáveis de ambiente:
+  #   BOT_STATE_PATH=/caminho/custom/state.json
+  #   BOT_PAUSE_FLAG=/caminho/custom/pause.flag
 
-# IA (autoajuste)
+# ========== IA (autoajuste de parâmetros) ==========
 ia:
   enabled: true
-  retrain_every: 7   # dias para novo ajuste de parâmetros
+  retrain_every: 7   # dias entre reavaliações simples do RSI (melhorias de walk-forward virão depois)
+
+# ========== Notificações (Telegram) ==========
+# As credenciais ficam no .env; aqui mantemos só o toggle.
+notifications:
+  telegram: true

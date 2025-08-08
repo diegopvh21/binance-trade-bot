@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 from loguru import logger
-from sklearn.ensemble import RandomForestClassifier
 from bot.binance_client import BinanceClient
 
 class IAManager:
@@ -10,20 +9,20 @@ class IAManager:
         self.last_retrain = None
 
     def check_and_update_params(self, symbol, strategies_manager):
-        # Reajusta parâmetros a cada X dias (pode sofisticar usando schedule ou threads)
         import datetime
         now = datetime.datetime.now()
         if self.last_retrain and (now - self.last_retrain).days < self.config['ia']['retrain_every']:
             return
         self.last_retrain = now
 
-        # Exemplo para RSI: encontra o melhor overbought/oversold via backtest e IA
         logger.info(f"[IA] Otimizando parâmetros RSI para {symbol}...")
         client = BinanceClient()
-        df = client.get_ohlcv(symbol, interval="1m", limit=500)
-        closes = df['close']
+        kl = client.get_klines(symbol, interval="1m", limit=500)
+        import pandas as pd
+        df = pd.DataFrame(kl, columns=['t','o','h','l','c','v','T','q','n','tb','tq','ig'])
+        df['c'] = df['c'].astype(float)
+        closes = df['c']
 
-        # Parâmetros a testar
         best_profit = -np.inf
         best_overbought = None
         best_oversold = None
@@ -35,7 +34,6 @@ class IAManager:
                     best_overbought = overbought
                     best_oversold = oversold
 
-        # Atualiza config em runtime (pode salvar ou sugerir ao usuário via painel)
         logger.info(f"[IA] Novo RSI {symbol}: overbought={best_overbought}, oversold={best_oversold}")
         self.config['rsi']['overbought'] = best_overbought
         self.config['rsi']['oversold'] = best_oversold
