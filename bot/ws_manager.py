@@ -14,7 +14,7 @@ from bot.notifier import Notifier
 from bot.ia import IAManager
 from bot.execution import ExecutionService
 from bot.binance_client import BinanceClient
-from bot.state import set_initial, set_last_tick_now
+from bot.state import set_initial, set_last_tick_now, is_recent_signal, add_recent_signal
 
 PAUSE_FLAG = os.getenv("BOT_PAUSE_FLAG", "pause.flag")
 TF_FLAG = os.getenv("BOT_TIMEFRAME_FLAG", "timeframe.flag")
@@ -59,6 +59,12 @@ class WebSocketBot:
         self._last_msg_ts = time.time()
         self._heartbeat_timeout = 15
 
+        # Reconcilia posições/PM no start
+        try:
+            self.exec.reconcile_all(self.symbols_upper)
+        except Exception as e:
+            logger.warning(f"Reconciliação inicial falhou: {e}")
+
     def _read_timeframe(self) -> str:
         if os.path.exists(TF_FLAG):
             try:
@@ -92,7 +98,14 @@ class WebSocketBot:
         if is_closed:
             self.mds.on_kline_closed(symbol, self.timeframe, k)
             close_price = float(k['c'])
+            candle_close_ts = int(k['T'])
             logger.info(f"[{symbol}] Candle {self.timeframe} fechado - Close: {close_price}")
+
+            # Proteção por software (SL/TP) — se OCO não foi possível:
+            try:
+                self.exec.check_protective_exit(symbol, close_price)
+            except Exception as e:
+                logger.warning(f"[{symbol}] watchdog proteção falhou: {e}")
 
             if self.ia_manager:
                 try:
@@ -108,9 +121,16 @@ class WebSocketBot:
                     logger.info(f"[{symbol}] Estratégia {strat_name} => Sinal: {signal}")
 
                     if self.config['mode'] == "trade" and signal in ["buy", "sell"]:
+                        # idempotência: evita duplicar sinal por candle
+                        if is_recent_signal(symbol, signal, candle_close_ts, ttl_sec=30):
+                            logger.warning(f"[{symbol}] Sinal {signal} ignorado (antirrepique).")
+                            continue
+                        add_recent_signal(symbol, signal, candle_close_ts, ttl_sec=30)
+
                         if self._is_paused():
                             logger.warning("⏸️  Trading pausado (pause.flag). Ignorando sinais.")
                             continue
+
                         usdt = self.client.get_asset_balance(asset='USDT')
                         usdt_free = float(usdt['free']) if usdt else 0.0
                         await asyncio.to_thread(self.exec.place_signal, symbol, signal, usdt_free)
@@ -135,7 +155,6 @@ class WebSocketBot:
                     logger.info(f"🔄 Timeframe alterado: {self.timeframe} → {new_tf}. Forçando reconexão...")
                     self.timeframe = new_tf
                     self._tf_last_mtime = mtime
-                    # força reconexão do stream
                     raise ConnectionError("Timeframe changed")
 
     async def start(self):
@@ -154,7 +173,7 @@ class WebSocketBot:
                 logger.error(f"WS caiu: {e}. Reconnect em {backoff}s...")
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60)
-                # ao reconectar, refaz bootstrap rápido no novo TF (últimos 200 candles)
+                # rebootstrap rápido no novo TF (últimos 200 candles)
                 try:
                     rest = BinanceClient()
                     for sym in self.symbols_upper:
@@ -164,7 +183,7 @@ class WebSocketBot:
             finally:
                 # cancela watchdog
                 for t in asyncio.all_tasks():
-                    if t is not asyncio.current_task() and t.get_coro().__name__ == "watchdog":
+                    if t is not asyncio.current_task() and getattr(t.get_coro(), "__name__", "") == "watchdog":
                         t.cancel()
 
 if __name__ == "__main__":

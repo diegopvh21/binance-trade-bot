@@ -1,88 +1,56 @@
-# ========== Ambiente ==========
-# Se "true", usa as variáveis *_TEST do .env e a URL de testnet.
-# Se "false", usa as variáveis *_PROD e a URL de produção.
-testnet: true
+# Ambiente
+testnet: true                # true para Testnet, false para Produção
+mode: trade                  # trade | backtest
+log_level: INFO               # DEBUG | INFO | WARNING | ERROR
+timeframe: "1m"               # Timeframe padrão (pode ser alterado via dashboard)
 
-# Versão do schema de config (só informativo, ajuda em futuras migrações)
-schema_version: 1
-
-# ========== Pares ==========
-# Sempre em MAIÚSCULAS (ex.: BTCUSDT). O WS já normaliza internamente.
+# Pares operados
 symbols:
   - BTCUSDT
   - ETHUSDT
-  - BNBUSDT
 
-# Timeframe principal para candles (o WS atual usa 1m; se mudar aqui, mude no código também)
-timeframe: "1m"
-
-# ========== Estratégias ==========
-# Estratégias habilitadas por símbolo (use os nomes exatamente como nas classes: "ema_cross", "rsi")
+# Estratégias por par
 strategies:
-  BTCUSDT: ["ema_cross", "rsi"]
-  ETHUSDT: ["ema_cross"]
-  BNBUSDT: ["rsi"]
+  BTCUSDT:
+    - ema_cross
+    - rsi
+  ETHUSDT:
+    - ema_cross
 
-# Parâmetros padrão das estratégias (usados pelo StrategyManager)
+# Parâmetros globais das estratégias
 ema_cross:
-  fast_period: 12
-  slow_period: 26
+  fast_period: 9
+  slow_period: 21
 
 rsi:
   period: 14
   overbought: 70
   oversold: 30
 
-# ========== Risco e Execução ==========
+# Gestão de risco
 risk:
-  capital_per_trade_pct: 5      # % do saldo USDT a ser usado por trade (para BUY via quoteOrderQty)
-  stop_loss_pct: 2              # reservado p/ evolução (ordens SL/TP)
-  take_profit_pct: 3            # reservado p/ evolução (ordens SL/TP)
-  max_daily_loss_pct: 10        # reservado p/ evolução mais precisa por capital
-  max_trades_per_day: 5         # trava de número de operações diárias
+  capital_per_trade_pct: 5     # % do saldo USDT por trade
+  stop_loss_pct: 1.0           # % perda máxima por trade
+  take_profit_pct: 2.0         # % ganho alvo por trade
+  max_daily_loss_pct: 5.0      # % perda máxima diária
+  max_trades_per_day: 10       # máximo de trades/dia
 
-# ========== Operação ==========
-# "trade": opera de verdade (usa ExecutionService).
-# "backtest": apenas gera sinais/logs (não envia ordens).
-mode: "trade"
-
-# Nível de log: "DEBUG", "INFO", "WARNING", "ERROR"
-log_level: "INFO"
-
-# ========== Web / Dashboard ==========
-web:
-  enabled: true
-  host: "0.0.0.0"
-  port: 5000
-  # O dashboard lê state.json e expõe /metrics (Prometheus).
-  # Você pode sobrescrever os paths via variáveis de ambiente:
-  #   BOT_STATE_PATH=/caminho/custom/state.json
-  #   BOT_PAUSE_FLAG=/caminho/custom/pause.flag
-
-# ========== IA (autoajuste de parâmetros) ==========
+# IA (otimização automática)
 ia:
-  enabled: true
-  retrain_every: 7   # dias entre reavaliações simples do RSI (melhorias de walk-forward virão depois)
+  enabled: false
+  retrain_every: 1             # dias
 
-# ========== Notificações (Telegram) ==========
-# As credenciais ficam no .env; aqui mantemos só o toggle.
-notifications:
-  telegram: true
-
+# Backtest
 backtest:
-  source: "csv"                 # "csv" = lê CSV (faz download automático se faltar) | "api" = baixa e roda sem CSV
-  candles_per_second: 30        # velocidade do replay (0 = full speed)
+  source: csv
+  candles_per_second: 50
   warmup: 200
-  quote_per_trade_usdt: 10
+  quote_per_trade_usdt: 100
+  auto_save_csv: true
   auto_download_if_missing: true
-  auto_save_csv: true           # se usar source: api, salva o que baixou
-  csv:
-    folder: "data/backtest"
-    pattern: "{symbol}_{interval}.csv"
   api:
-    # escolha UMA das opções abaixo:
-    # 1) janela fixa (em milissegundos epoch)
-    # start_ms: 1722384000000   # exemplo
-    # end_ms:   1722988800000
-    # 2) OU últimos N dias a partir de agora:
-    last_days: 10
+    last_days: 15
+  csv:
+    folder: data/backtest
+    pattern: "{symbol}_{interval}.csv"
+

@@ -14,6 +14,7 @@ _DEFAULT: Dict[str, Any] = {
     "trades": [],             # [{ts, symbol, side, qty, price, pnl}]
     "mode": "trade",          # "trade" | "backtest" (informativo)
     "symbols": [],            # lista de pares
+    "recent_signals": [],     # antirrepique: [{ts, symbol, side, candle_close}]
 }
 
 def _read() -> Dict[str, Any]:
@@ -48,6 +49,7 @@ def set_initial(mode: str, symbols: List[str]) -> None:
         st["trades"] = []
         st["mode"] = mode
         st["symbols"] = symbols
+        st["recent_signals"] = []
         _write(st)
 
 def set_last_tick_now() -> None:
@@ -70,3 +72,34 @@ def append_trade(symbol: str, side: str, qty: float, price: float, pnl: float = 
         st["trades"] = st["trades"][-200:]  # mantém só os últimos 200
         st["pnl_daily"] = float(st.get("pnl_daily", 0.0)) + float(pnl or 0.0)
         _write(st)
+
+# --------- antirrepique / idempotência de sinais ---------
+def add_recent_signal(symbol: str, side: str, candle_close: int, ttl_sec: int = 30) -> None:
+    now = int(time.time())
+    with _lock:
+        st = _read()
+        arr = st.get("recent_signals", [])
+        arr.append({"ts": now, "symbol": symbol, "side": side, "candle_close": int(candle_close)})
+        # prune
+        arr = [x for x in arr if (now - int(x.get("ts", now))) <= ttl_sec]
+        st["recent_signals"] = arr[-500:]
+        _write(st)
+
+def is_recent_signal(symbol: str, side: str, candle_close: int, ttl_sec: int = 30) -> bool:
+    now = int(time.time())
+    with _lock:
+        st = _read()
+        arr = st.get("recent_signals", [])
+        # prune enquanto verifica
+        kept = []
+        hit = False
+        for x in arr:
+            if (now - int(x.get("ts", now))) <= ttl_sec:
+                kept.append(x)
+                if (x.get("symbol") == symbol and
+                    x.get("side") == side and
+                    int(x.get("candle_close", 0)) == int(candle_close)):
+                    hit = True
+        st["recent_signals"] = kept[-500:]
+        _write(st)
+        return hit
