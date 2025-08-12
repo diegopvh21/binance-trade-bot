@@ -68,3 +68,21 @@ ia:
 # As credenciais ficam no .env; aqui mantemos só o toggle.
 notifications:
   telegram: true
+
+backtest:
+  source: "csv"                 # "csv" = lê CSV (faz download automático se faltar) | "api" = baixa e roda sem CSV
+  candles_per_second: 30        # velocidade do replay (0 = full speed)
+  warmup: 200
+  quote_per_trade_usdt: 50
+  auto_download_if_missing: true
+  auto_save_csv: true           # se usar source: api, salva o que baixou
+  csv:
+    folder: "data/backtest"
+    pattern: "{symbol}_{interval}.csv"
+  api:
+    # escolha UMA das opções abaixo:
+    # 1) janela fixa (em milissegundos epoch)
+    # start_ms: 1722384000000   # exemplo
+    # end_ms:   1722988800000
+    # 2) OU últimos N dias a partir de agora:
+    last_days: 5
