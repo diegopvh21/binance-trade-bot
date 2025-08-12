@@ -71,11 +71,11 @@ TPL = """
   <p class="{{ pnl_cls }}"><b>{{ "{:+.4f}".format(st["pnl_daily"]) }} USDT</b></p>
 
   <h3>Últimos trades</h3>
-  {% if st["trades"] %}
+  {% if trades_view %}
   <table>
     <thead><tr><th>Quando</th><th>Par</th><th>Lado</th><th>Qtd</th><th>Preço</th><th>PNL</th></tr></thead>
     <tbody>
-      {% for t in st["trades"]|reverse|list[:30] %}
+      {% for t in trades_view %}
       <tr>
         <td>{{ time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t["ts"])) }}</td>
         <td>{{ t["symbol"] }}</td>
@@ -128,6 +128,10 @@ def index():
 
     paused = os.path.exists(PAUSE_FLAG)
 
+    # prepara a lista de trades para o template (junta reverse + slice aqui)
+    trades = st.get("trades", []) or []
+    trades_view = list(reversed(trades))[:30]
+
     return render_template_string(
         TPL,
         st=st,
@@ -138,7 +142,8 @@ def index():
         pnl_cls=pnl_cls,
         paused=paused,
         timeframe=timeframe,
-        valid_tfs=VALID_TIMEFRAMES
+        valid_tfs=VALID_TIMEFRAMES,
+        trades_view=trades_view,
     )
 
 @app.route("/pause")
@@ -194,4 +199,5 @@ def metrics():
     return "\n".join(lines), 200, {"Content-Type": "text/plain; version=0.0.4"}
 
 if __name__ == "__main__":
+    # Se quiser rodar direto: python -m web.dashboard (recomendado)
     app.run(host="0.0.0.0", port=5000)
